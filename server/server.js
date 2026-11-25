@@ -27,17 +27,9 @@ app.use(
 );
 
 
-app.use(
-  "/uploads",
-  express.static(
-    path.join(__dirname, "uploads")
-  )
-);
+app.use("/uploads",express.static(path.join(__dirname, "uploads")));
 
-app.use(
-  "/api/dashboard",
-  dashboardRoutes
-);
+app.use("/api/dashboard",dashboardRoutes);
 
 
 app.get("/", (req, res) => {
@@ -51,6 +43,16 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 
 app.use("/api/invoices", invoiceRoutes);
+
+app.use(
+  "/api/reports",
+  reportRoutes
+);
+
+app.use(
+  "/api/export",
+  exportRoutes
+);
 
 app.use((req, res) => {
   res.status(404).json({
@@ -68,15 +70,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.use(
-  "/api/reports",
-  reportRoutes
-);
 
-app.use(
-  "/api/export",
-  exportRoutes
-);
 const startServer = async () => {
   try {
     await connectDB();

@@ -1,7 +1,8 @@
+
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "https://invoice-management-t4oi.onrender.com",
+  baseURL: "http://localhost:5000",
 });
 
 API.interceptors.request.use(
@@ -14,7 +15,9 @@ API.interceptors.request.use(
 
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    return Promise.reject(error);
+  }
 );
 
 export default API;
