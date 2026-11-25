@@ -1,6 +1,5 @@
 import { useState } from "react";
 import API from "../services/api";
-
 import {
   UploadCloud,
   FileText,
@@ -10,17 +9,10 @@ import {
 } from "lucide-react";
 
 const UploadInvoice = () => {
-  const [file, setFile] =
-    useState(null);
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [response, setResponse] =
-    useState(null);
-
-  const [error, setError] =
-    useState("");
+  const [file, setFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [response, setResponse] = useState(null);
+  const [error, setError] = useState("");
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
@@ -28,51 +20,53 @@ const UploadInvoice = () => {
 
   const handleUpload = async () => {
     if (!file) {
-      setError(
-        "Please select an invoice file."
-      );
-
+      setError("Please select an invoice file.");
       return;
     }
 
     setLoading(true);
     setError("");
+    setResponse(null);
 
     try {
-      const formData =
-        new FormData();
+      const formData = new FormData();
+      formData.append("invoice", file);
 
-      formData.append(
-        "invoice",
-        file
+      const res = await API.post(
+        "/api/invoices/upload",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
       );
 
-      const res =
-        await API.post(
-          "/api/invoices/upload",
-          formData,
-          {
-            headers: {
-              "Content-Type":
-                "multipart/form-data",
-            },
-          }
-        );
+      setResponse(res.data);
 
-      setResponse(
-        res.data
-      );
+      console.log("✅ SUCCESS:", res.data);
+    } catch (err) {
+      console.error("FULL ERROR:", err);
 
       console.log(
-        res.data
+        "RAW RESPONSE:",
+        err.response?.data
       );
-    } catch (err) {
-      console.error(err);
+
+      alert(
+        JSON.stringify(
+          err.response?.data,
+          null,
+          2
+        )
+      );
 
       setError(
-        err.response?.data
-          ?.message ||
-          "Upload failed"
+        JSON.stringify(
+          err.response?.data,
+          null,
+          2
+        )
       );
     } finally {
       setLoading(false);
@@ -81,24 +75,18 @@ const UploadInvoice = () => {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-
       <div>
         <h1 className="text-3xl font-bold text-slate-900">
           Upload Invoice
         </h1>
 
         <p className="mt-2 text-slate-500">
-          Upload PDF, PNG or JPG
-          invoice files for OCR
-          processing.
+          Upload PDF, PNG, JPG or JPEG invoice files.
         </p>
       </div>
 
-      {/* Upload Card */}
-
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="flex flex-col items-center justify-center text-center">
+        <div className="flex flex-col items-center text-center">
           <div className="rounded-3xl bg-emerald-100 p-6">
             <UploadCloud
               size={42}
@@ -117,9 +105,7 @@ const UploadInvoice = () => {
           <input
             type="file"
             accept=".pdf,.png,.jpg,.jpeg"
-            onChange={
-              handleFileChange
-            }
+            onChange={handleFileChange}
             className="mt-8 block w-full max-w-md rounded-2xl border border-slate-300 px-4 py-3"
           />
 
@@ -130,13 +116,9 @@ const UploadInvoice = () => {
           )}
 
           <button
-            onClick={
-              handleUpload
-            }
-            disabled={
-              loading
-            }
-            className="mt-8 rounded-2xl bg-emerald-600 px-8 py-3 font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+            onClick={handleUpload}
+            disabled={loading}
+            className="mt-8 rounded-2xl bg-emerald-600 px-8 py-3 font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
           >
             {loading ? (
               <span className="flex items-center gap-2">
@@ -149,17 +131,21 @@ const UploadInvoice = () => {
           </button>
 
           {error && (
-            <div className="mt-6 flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-red-600">
-              <AlertTriangle
-                size={18}
-              />
-              {error}
+            <div className="mt-6 w-full rounded-xl bg-red-50 p-4 text-left">
+              <div className="flex items-center gap-2 text-red-600">
+                <AlertTriangle size={18} />
+                <span className="font-medium">
+                  Upload Error
+                </span>
+              </div>
+
+              <pre className="mt-2 whitespace-pre-wrap text-sm text-red-700">
+                {error}
+              </pre>
             </div>
           )}
         </div>
       </div>
-
-      {/* Duplicate Warning */}
 
       {response?.duplicate && (
         <div className="rounded-3xl border border-amber-300 bg-amber-50 p-6">
@@ -172,23 +158,13 @@ const UploadInvoice = () => {
               </h3>
 
               <p className="mt-2 text-sm text-amber-700">
-                This invoice already
-                exists in the system.
-              </p>
-
-              <p className="mt-2 text-xs text-amber-600">
-                ID:
-                {" "}
-                {
-                  response.existingInvoiceId
-                }
+                This invoice already exists in
+                the system.
               </p>
             </div>
           </div>
         </div>
       )}
-
-      {/* Extracted Data */}
 
       {response?.extractedData && (
         <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -204,8 +180,7 @@ const UploadInvoice = () => {
             <InfoCard
               title="Invoice Number"
               value={
-                response
-                  .extractedData
+                response.extractedData
                   ?.invoiceNumber
               }
             />
@@ -213,8 +188,7 @@ const UploadInvoice = () => {
             <InfoCard
               title="Invoice Date"
               value={
-                response
-                  .extractedData
+                response.extractedData
                   ?.invoiceDate
               }
             />
@@ -222,8 +196,7 @@ const UploadInvoice = () => {
             <InfoCard
               title="Due Date"
               value={
-                response
-                  .extractedData
+                response.extractedData
                   ?.dueDate
               }
             />
@@ -231,25 +204,19 @@ const UploadInvoice = () => {
             <InfoCard
               title="Tax Amount"
               value={
-                response
-                  .extractedData
-                  ?.tax
+                response.extractedData?.tax
               }
             />
 
             <InfoCard
               title="Total Amount"
               value={
-                response
-                  .extractedData
-                  ?.total
+                response.extractedData?.total
               }
             />
           </div>
         </div>
       )}
-
-      {/* OCR Text */}
 
       {response && (
         <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -277,10 +244,7 @@ const UploadInvoice = () => {
   );
 };
 
-const InfoCard = ({
-  title,
-  value,
-}) => (
+const InfoCard = ({ title, value }) => (
   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
     <p className="text-sm text-slate-500">
       {title}
