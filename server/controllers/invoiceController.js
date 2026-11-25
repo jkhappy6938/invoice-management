@@ -50,8 +50,8 @@ const createInvoice = async (
         invoiceDate:
           invoiceDate
             ? new Date(
-                invoiceDate
-              )
+              invoiceDate
+            )
             : new Date(),
 
         subtotal:
@@ -120,172 +120,164 @@ const createInvoice = async (
 // UPLOAD INVOICE
 // =====================
 
-const uploadInvoice = async (
-  req,
-  res
-) => {
+const uploadInvoice = async (req, res) => {
   try {
+    console.log("========== UPLOAD START ==========");
+    console.log("FILE:", req.file);
+    console.log("USER:", req.user);
+
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "User authentication failed",
+      });
+    }
 
     if (!req.file) {
       return res.status(400).json({
         success: false,
-        message:
-          "Invoice file required",
+        message: "Invoice file required",
       });
     }
 
-    const extractedText =
-      await extractTextFromInvoice(
+    let extractedText = "";
+
+    try {
+      extractedText = await extractTextFromInvoice(
         req.file.path,
         req.file.mimetype
       );
 
+      console.log("OCR SUCCESS");
+    } catch (error) {
+      console.error("OCR ERROR:", error);
+
+      extractedText = "";
+    }
+
     const parsedData =
-      extractInvoiceData(
-        extractedText
+      extractInvoiceData(extractedText);
+
+    console.log("PARSED DATA:", parsedData);
+
+    const duplicate = parsedData.invoiceNumber
+      ? await Invoice.findOne({
+          invoiceNumber:
+            parsedData.invoiceNumber,
+          uploadedBy:
+            req.user.userId,
+        })
+      : null;
+
+    let invoiceDate = new Date();
+
+    if (parsedData.invoiceDate) {
+      const date = new Date(
+        parsedData.invoiceDate
       );
 
-    const duplicate =
-      await Invoice.findOne({
-        invoiceNumber:
-          parsedData.invoiceNumber,
-        uploadedBy:
-          req.user.userId,
-      });
-
-    let invoiceDate =
-      new Date();
-
-    if (
-      parsedData.invoiceDate
-    ) {
-      const tempDate =
-        new Date(
-          parsedData.invoiceDate
-        );
-
-      if (
-        !isNaN(
-          tempDate.getTime()
-        )
-      ) {
-        invoiceDate =
-          tempDate;
+      if (!isNaN(date.getTime())) {
+        invoiceDate = date;
       }
     }
 
-    const category =
-      generateCategory(
-        parsedData.vendorName
-      );
+    const category = generateCategory(
+      parsedData.vendorName || ""
+    );
 
-    const warning =
-      detectIssues({
-        vendorName:
-          parsedData.vendorName,
-        gstNumber:
-          parsedData.gstNumber,
-        subtotal:
-          parsedData.subtotal,
-        taxAmount:
-          parsedData.taxAmount,
-        totalAmount:
-          parsedData.totalAmount,
-      }).join(", ");
+    const warning = detectIssues({
+      vendorName:
+        parsedData.vendorName,
+      gstNumber:
+        parsedData.gstNumber,
+      subtotal:
+        parsedData.subtotal,
+      taxAmount:
+        parsedData.taxAmount,
+      totalAmount:
+        parsedData.totalAmount,
+    }).join(", ");
 
-    const invoice =
-      await Invoice.create({
-        invoiceNumber:
-          parsedData.invoiceNumber ||
-          `INV-${Date.now()}`,
+    const invoice = await Invoice.create({
+      invoiceNumber:
+        parsedData.invoiceNumber ||
+        `INV-${Date.now()}`,
 
-        vendorName:
-          parsedData.vendorName ||
-          "Unknown Vendor",
+      vendorName:
+        parsedData.vendorName ||
+        "Unknown Vendor",
 
-        gstNumber:
-          parsedData.gstNumber ||
-          "",
+      gstNumber:
+        parsedData.gstNumber || "",
 
-        invoiceDate,
+      invoiceDate,
 
-        subtotal:
-          Number(
-            parsedData.subtotal
-          ) || 0,
+      subtotal:
+        Number(parsedData.subtotal) || 0,
 
-        taxAmount:
-          Number(
-            parsedData.taxAmount
-          ) || 0,
+      taxAmount:
+        Number(parsedData.taxAmount) || 0,
 
-        totalAmount:
-          Number(
-            parsedData.totalAmount
-          ) || 0,
+      totalAmount:
+        Number(parsedData.totalAmount) || 0,
 
-        uploadedBy:
-          req.user.userId,
+      uploadedBy:
+        req.user.userId,
 
-        fileUrl:
-          req.file.filename,
+      fileUrl:
+        req.file.filename,
 
-        extractedText,
+      extractedText,
 
-        category,
+      category,
 
-        warning,
+      warning,
 
-        isDuplicate:
-          Boolean(
-            duplicate
-          ),
+      isDuplicate:
+        Boolean(duplicate),
 
-        status: "Pending",
+      status: "Pending",
 
-        history: [
-          {
-            action:
-              "Invoice Uploaded",
-            performedBy:
-              req.user.userId,
-          },
-        ],
-      });
+      history: [
+        {
+          action:
+            "Invoice Uploaded",
+          performedBy:
+            req.user.userId,
+        },
+      ],
+    });
 
     invoice.summary =
-      generateSummary(
-        invoice
-      );
+      generateSummary(invoice);
 
     await invoice.save();
 
-    res.status(201).json({
+    console.log("INVOICE SAVED");
+
+    return res.status(201).json({
       success: true,
       duplicate:
-        Boolean(
-          duplicate
-        ),
+        Boolean(duplicate),
       invoice,
       extractedData:
         parsedData,
+      extractedText,
     });
-
   } catch (error) {
+    console.error(
+      "UPLOAD ERROR:",
+      error
+    );
 
-    console.error(error);
-
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      error:
-        error.message,
+      error: error.message,
       message:
         "Failed to process invoice",
     });
-
   }
 };
-
 
 // =====================
 // GET ALL
